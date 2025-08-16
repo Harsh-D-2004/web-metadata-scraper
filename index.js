@@ -20,8 +20,8 @@ app.post("/website" , async (req, res) => {
             return;
         }
 
-        brand_name = "xxx";
-        description = "xxx";
+        const brand_name = "xxx";
+        const description = "xxx";
         
         const website = await prisma.website.create({
             data: {
@@ -31,6 +31,70 @@ app.post("/website" , async (req, res) => {
             },
         });
         res.send(website).status(201);
+    } catch (error) {
+        res.status(500).send("Internal server error");
+    }
+});
+
+app.get("/website", async (req, res) => {
+    try {
+        const websites = await prisma.website.findMany();
+
+        if(!websites) {
+            res.status(404).send("No websites found");
+            return;
+        }
+        res.send(websites).status(200);
+    } catch (error) {
+        res.status(500).send("Internal server error");
+    }
+});
+
+app.put("/website/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { brand_name, description } = req.body;
+
+        if (!id) {
+            res.status(400).send("Missing id");
+            return;
+        }
+
+        if (!brand_name && !description) {
+            res.status(400).send("Missing brand_name or description");
+            return;
+        }
+
+        const website = await prisma.website.update({
+            where: {
+                id: parseInt(id),
+            },
+            data: {
+                brand_name: brand_name,
+                description: description,
+            },
+        });
+        res.send(website).status(200);
+    } catch (error) {
+        res.status(500).send("Internal server error");
+    }
+});
+
+app.delete("/website/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            res.status(400).send("Missing id");
+            return;
+        }
+
+        const website = await prisma.website.delete({
+            where: {
+                id: parseInt(id),
+            },
+        });
+        res.send(website).status(200);
     } catch (error) {
         res.status(500).send("Internal server error");
     }
