@@ -4,27 +4,39 @@ import puppeteer from "puppeteer";
 import * as fs from "fs";
 
 export async function getMetadata(url) {
-    try{
+    console.log(`[getMetadata] Starting for URL: ${url}`);
+    try {
         const refinedUrl = refineUrl(url);
         if (!refinedUrl) {
+            console.warn("[getMetadata] Invalid URL");
             return { brand_name: "Unknown", description: "Unknown" };
         }
+
+        console.log(`[getMetadata] Refined URL: ${refinedUrl}`);
         const data = await scrape(refinedUrl);
-        if(!data) {
+
+        if (!data) {
+            console.warn("[getMetadata] No data scraped");
             return { brand_name: "Unknown", description: "Unknown" };
         }
+
         const metadata = await refineData(preprocessText(data));
-        if(!metadata) {
+
+        if (!metadata) {
+            console.warn("[getMetadata] Metadata missing");
             return { brand_name: "Unknown", description: "Unknown" };
         }
+
+        console.log(`[getMetadata] Success for ${refinedUrl}`);
         return metadata;
     } catch (error) {
-        console.error("Error getting metadata:", error.message);
+        console.error("[getMetadata] Error:", error.message);
         return { brand_name: "Unknown", description: "Unknown" };
     }
 }
 
 async function scrape(url) {
+  console.log(`[scrape] Visiting: ${url}`);
   let combinedText = "";
 
   try {
@@ -41,28 +53,29 @@ async function scrape(url) {
 
     combinedText += " " + bodyText;
     await browser.close();
+
+    console.log(`[scrape] Extracted ${combinedText.length} chars`);
     return combinedText;
   } catch (err) {
-    console.error("Scrape error:", err.message);
+    console.error("[scrape] Error:", err.message);
     return null;
   }
 }
 
 function preprocessText(text) {
   if (!text) return "";
-
   let cleanedText = text
-    .replace(/<[^>]+>/g, "")              // for  HTML tags
-    .replace(/&nbsp;/gi, " ")             // for  non-breaking spaces
-    .replace(/\s+/g, " ")                 // for  multiple spaces
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
     .trim();
 
+  console.log(`[preprocessText] Cleaned length: ${cleanedText.length}`);
   return cleanedText;
 }
 
 function refineUrl(url) {
-
-    if (!url) return null;
+  if (!url) return null;
 
   if (!/^https?:\/\//i.test(url)) {
     url = "https://" + url;
@@ -70,21 +83,20 @@ function refineUrl(url) {
 
   try {
     const parsed = new URL(url);
-
     parsed.hostname = parsed.hostname.toLowerCase();
     parsed.pathname = parsed.pathname.replace(/\/+$/, "");
-
     return parsed.toString();
   } catch (err) {
-    console.error("Invalid URL:", url);
+    console.error("[refineUrl] Invalid URL:", url);
     return null;
   }
 }
 
-
 async function refineData(context) {
+  console.log("[refineData] Sending context to model...");
   const promptTemplate = fs.readFileSync("./prompt.txt", "utf8");
   const prompt = promptTemplate.replace("${context}", context);
+
   try {
     const data = {
       contents: [
@@ -103,7 +115,7 @@ async function refineData(context) {
     const url = process.env.GEMINI_URL;
 
     const res = await axios.post(url, data, config);
-    
+
     let output = res.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     output = output.replace(/```json|```/gi, "").trim();
@@ -111,17 +123,15 @@ async function refineData(context) {
     let parsed;
     try {
       parsed = JSON.parse(output);
+      console.log("[refineData] Parsed successfully");
     } catch (e) {
-      console.error("Failed to parse JSON:", output);
+      console.error("[refineData] Failed to parse JSON:", output);
       parsed = { brand_name: "Unknown", description: "Unknown" };
     }
 
     return parsed;
   } catch (error) {
-    console.error(
-      "Error refining data:",
-      error.response?.data || error.message
-    );
+    console.error("[refineData] Error:", error.response?.data || error.message);
     return { brand_name: "Unknown", description: "Unknown" };
   }
 }
