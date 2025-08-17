@@ -7,6 +7,7 @@ const app = express();
 const prisma = new PrismaClient()
 
 app.use(express.json());
+app.set("trust proxy", 1);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
