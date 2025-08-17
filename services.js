@@ -1,38 +1,38 @@
 import axios from "axios";
-import * as cheerio from "cheerio";
-import puppeteer from "puppeteer";
+import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-core";
 import * as fs from "fs";
 
 export async function getMetadata(url) {
-    console.log(`[getMetadata] Starting for URL: ${url}`);
-    try {
-        const refinedUrl = refineUrl(url);
-        if (!refinedUrl) {
-            console.warn("[getMetadata] Invalid URL");
-            return { brand_name: "Unknown", description: "Unknown" };
-        }
-
-        console.log(`[getMetadata] Refined URL: ${refinedUrl}`);
-        const data = await scrape(refinedUrl);
-
-        if (!data) {
-            console.warn("[getMetadata] No data scraped");
-            return { brand_name: "Unknown", description: "Unknown" };
-        }
-
-        const metadata = await refineData(preprocessText(data));
-
-        if (!metadata) {
-            console.warn("[getMetadata] Metadata missing");
-            return { brand_name: "Unknown", description: "Unknown" };
-        }
-
-        console.log(`[getMetadata] Success for ${refinedUrl}`);
-        return metadata;
-    } catch (error) {
-        console.error("[getMetadata] Error:", error.message);
-        return { brand_name: "Unknown", description: "Unknown" };
+  console.log(`[getMetadata] Starting for URL: ${url}`);
+  try {
+    const refinedUrl = refineUrl(url);
+    if (!refinedUrl) {
+      console.warn("[getMetadata] Invalid URL");
+      return { brand_name: "Unknown", description: "Unknown" };
     }
+
+    console.log(`[getMetadata] Refined URL: ${refinedUrl}`);
+    const data = await scrape(refinedUrl);
+
+    if (!data) {
+      console.warn("[getMetadata] No data scraped");
+      return { brand_name: "Unknown", description: "Unknown" };
+    }
+
+    const metadata = await refineData(preprocessText(data));
+
+    if (!metadata) {
+      console.warn("[getMetadata] Metadata missing");
+      return { brand_name: "Unknown", description: "Unknown" };
+    }
+
+    console.log(`[getMetadata] Success for ${refinedUrl}`);
+    return metadata;
+  } catch (error) {
+    console.error("[getMetadata] Error:", error.message);
+    return { brand_name: "Unknown", description: "Unknown" };
+  }
 }
 
 async function scrape(url) {
@@ -41,9 +41,12 @@ async function scrape(url) {
 
   try {
     const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
+
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
 
@@ -53,8 +56,6 @@ async function scrape(url) {
 
     combinedText += " " + bodyText;
     await browser.close();
-
-    console.log(`[scrape] Extracted ${combinedText.length} chars`);
     return combinedText;
   } catch (err) {
     console.error("[scrape] Error:", err.message);
