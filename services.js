@@ -1,7 +1,10 @@
 import axios from "axios";
 import chromium from "@sparticuz/chromium";
-import puppeteer from "puppeteer-core";
+import puppeteer from "puppeteer";
+import puppeteerCore from "puppeteer-core";
 import * as fs from "fs";
+
+const isProd = process.env.NODE_ENV === "production";
 
 export async function getMetadata(url) {
   console.log(`[getMetadata] Starting for URL: ${url}`);
@@ -35,17 +38,29 @@ export async function getMetadata(url) {
   }
 }
 
-async function scrape(url) {
-  console.log(`[scrape] Visiting: ${url}`);
-  let combinedText = "";
 
-  try {
-    const browser = await puppeteer.launch({
+export async function launchBrowser() {
+  if (isProd) {
+    return await puppeteerCore.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
     });
+  } else {
+    return await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+  }
+}
+
+async function scrape(url) {
+  console.log(`[scrape] Visiting: ${url}`);
+  let combinedText = "";
+
+  try {
+    const browser = await launchBrowser();
 
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
